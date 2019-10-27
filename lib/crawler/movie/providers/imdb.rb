@@ -51,7 +51,7 @@ module Crawler
           current_start = 1
 
           loop do
-            response = Faraday.get('https://www.imdb.com/search/title',
+            response = Faraday.get('https://www.imdb.com/search/title/',
               title: query,
               title_type: 'feature,short',
               count: 50,

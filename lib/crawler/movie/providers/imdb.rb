@@ -13,7 +13,7 @@ module Crawler
         def self.find(id)
           response = Faraday.get("https://www.imdb.com/title/#{id}/")
 
-          return if !response.success? || !response.body
+          return if !response.success? || response.body.blank?
 
           html = Nokogiri::HTML(response.body)
           widget = html.css('#title-overview-widget')
@@ -21,15 +21,19 @@ module Crawler
           original_title = widget.css('.title_wrapper .originalTitle > text()').text.presence
           genres = (html.css('#titleStoryLine .see-more:contains("Genres:") a') || []).map { |genre| genre.text.strip }
           poster = widget.css('.poster img')
-          poster_url = poster.present? ? "#{poster.attr('src').value.split('@').first}@._V1_.jpg" : nil
+          poster_url = poster.presence && "#{poster.attr('src').value.split('@').first}@._V1_.jpg"
           overview = widget.css('.summary_text').text.sub(/See full (synopsis|summary) »/, '').strip
           overview = nil if overview == 'Add a Plot »'
           release_date_matches = html.css('#titleDetails .txt-block:contains("Release Date:") > text()').text.match(/(?<release_date>\d{1,2} \w+ \d{4})/)
           release_date = release_date_matches && Date.parse(release_date_matches[:release_date])
-          original_languages = (html.css('#titleDetails .txt-block:contains("Language:") a') || []).map do |lang|
-            uri = URI(lang.attr('href'))
-            params = URI.decode_www_form(uri.query).to_h
-            params['primary_language']
+          original_languages = (html.css('#titleDetails .txt-block:contains("Language:") a') || []).each_with_object([]) do |lang, acc|
+            begin
+              uri = URI(lang.attr('href'))
+              params = URI.decode_www_form(uri.query).to_h
+              accc << params['primary_language']
+            rescue StandardError
+              # Ignored
+            end
           end
 
           {
